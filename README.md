@@ -8,7 +8,17 @@ One Knight image for the exg-c app. NeuroPawn stays a build dependency. This rep
 | 1 | 250 SPS, EEG only |
 | 2 | 500 SPS, EEG only |
 
-After `setup()` the board prints `EXG-FW 1`. The app reads that line and refuses to treat an older image as current.
+After `setup()` the board prints `EXG-FW 2` and `EXG-MODE N`.
+
+Settings sends one line on the same 115200 link, then the board restarts itself:
+
+```
+exgmode_0
+exgmode_1
+exgmode_2
+```
+
+`chon_`, `choff_`, `rldadd_`, and `rldremove_` are unchanged. One upload of this image is required before those three lines do anything. Later mode changes do not open the bootloader.
 
 ```bash
 ./scripts/build.sh
