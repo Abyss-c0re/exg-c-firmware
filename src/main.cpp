@@ -49,6 +49,9 @@ static void apply_mode(uint8_t m)
 static void reboot_into(uint8_t m)
 {
     EEPROM.update(0, m);
+    Serial.print(F("EXG-SWITCH "));
+    Serial.println((int)m);
+    Serial.flush();
     wdt_enable(WDTO_15MS);
     for (;;) {
     }
