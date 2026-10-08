@@ -8,7 +8,7 @@ One Knight image for the exg-c app. NeuroPawn stays a build dependency. This rep
 | 1 | 250 SPS, EEG only |
 | 2 | 500 SPS, EEG only |
 
-After `setup()` the board prints `EXG-FW 2` and `EXG-MODE N`.
+After `setup()` the board prints `EXG-FW 3` and `EXG-MODE N`. `exgmode_N` is read before the NeuroPawn command parser, which drops any other line. On the Titan, Settings `exgmode_2` printed `EXG-SWITCH 2` and then `EEG 500 SPS`.
 
 Settings sends one line on the same 115200 link, then the board restarts itself:
 
