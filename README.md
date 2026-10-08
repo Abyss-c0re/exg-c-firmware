@@ -8,7 +8,7 @@ One Knight image for the exg-c app. NeuroPawn stays a build dependency. This rep
 | 1 | 250 SPS, EEG only |
 | 2 | 500 SPS, EEG only |
 
-After `setup()` the board prints `EXG-FW 3` and `EXG-MODE N`. `exgmode_N` is read before the NeuroPawn command parser, which drops any other line. On the Titan, Settings `exgmode_2` printed `EXG-SWITCH 2` and then `EEG 500 SPS`.
+After `setup()` the board prints `EXG-FW 4` and `EXG-MODE N`. `exgmode_N` is read before the NeuroPawn command parser, which drops any other line. A partial line is dropped on a later call, 20 ms on. `available()` does not wait. Firmware 3 already answered `exgmode_2` with `EXG-SWITCH 2` and then `EEG 500 SPS`. Firmware 4 keeps that, and stops waiting inside `available()` while the line is incomplete.
 
 Settings sends one line on the same 115200 link, then the board restarts itself:
 

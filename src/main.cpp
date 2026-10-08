@@ -18,7 +18,7 @@
  * is taken from HardwareSerial::available() before that read.
  */
 #ifndef EXG_FW_VERSION
-#define EXG_FW_VERSION 3
+#define EXG_FW_VERSION 4
 #endif
 
 static char cmd[12];
@@ -26,11 +26,13 @@ static uint8_t cmd_n;
 
 extern "C" int __real__ZN14HardwareSerial9availableEv(HardwareSerial *self);
 
+/* Bytes waiting on Serial. Calls the real available(), so the wrap does not re-enter. */
 static int serial_waiting(void)
 {
     return __real__ZN14HardwareSerial9availableEv(&Serial);
 }
 
+/* EEPROM byte 0. A value above 2, including a blank 0xFF, is mode 0. */
 static uint8_t boot_mode(void)
 {
     uint8_t m = EEPROM.read(0);
@@ -40,6 +42,7 @@ static uint8_t boot_mode(void)
     return m;
 }
 
+/* Starts the ADS1299 for mode 0, 1, or 2, then prints EXG-FW and EXG-MODE. */
 static void apply_mode(uint8_t m)
 {
     if (m == 1) {
@@ -55,6 +58,7 @@ static void apply_mode(uint8_t m)
     Serial.println((int)m);
 }
 
+/* Stores m, prints EXG-SWITCH, flushes, and hangs until the 15 ms watchdog resets. Does not return. */
 static void reboot_into(uint8_t m)
 {
     EEPROM.update(0, m);
@@ -66,10 +70,12 @@ static void reboot_into(uint8_t m)
     }
 }
 
+/* Millis when a partial line started. 0 means there is no partial line. */
+static uint32_t cmd_since;
+
 /* Pull one exgmode_N line. Leave every other byte for the library.
- * A partial 'e' line is finished or dropped. It must not sit in the
- * UART buffer, or readString() takes the rest and the mode is lost.
- */
+ * A partial 'e' line is finished or dropped on a later call, 20 ms on.
+ * available() does not wait. busy stops the wrap from entering twice. */
 static void poll_mode_line(void)
 {
     static uint8_t busy;
@@ -80,18 +86,25 @@ static void poll_mode_line(void)
     busy = 1;
     for (;;) {
         if (serial_waiting() == 0) {
-            uint32_t t0;
             if (cmd_n == 0) {
+                cmd_since = 0;
                 break;
             }
-            t0 = millis();
-            while (serial_waiting() == 0 && (uint32_t)(millis() - t0) < 20u) {
-            }
-            if (serial_waiting() == 0) {
-                cmd_n = 0;
+            if (cmd_since == 0) {
+                cmd_since = millis();
+                if (cmd_since == 0) {
+                    cmd_since = 1;
+                }
                 break;
             }
+            if ((uint32_t)(millis() - cmd_since) < 20u) {
+                break;
+            }
+            cmd_n = 0;
+            cmd_since = 0;
+            break;
         }
+        cmd_since = 0;
         {
             int c = Serial.peek();
             if (cmd_n == 0 && c != 'e') {
@@ -123,6 +136,8 @@ static void poll_mode_line(void)
     busy = 0;
 }
 
+/* On Serial, takes an exgmode_ line first, then returns the real available() count.
+ * Any other UART is left alone. Do not call Serial.available() from here. */
 extern "C" int __wrap__ZN14HardwareSerial9availableEv(HardwareSerial *self)
 {
     if (self == &Serial) {
@@ -131,11 +146,13 @@ extern "C" int __wrap__ZN14HardwareSerial9availableEv(HardwareSerial *self)
     return __real__ZN14HardwareSerial9availableEv(self);
 }
 
+/* Reads the mode byte and starts the converter once. */
 void setup(void)
 {
     apply_mode(boot_mode());
 }
 
+/* Checks for exgmode_, then lets the library stream and read chon_ / rld lines. */
 void loop(void)
 {
     poll_mode_line();
